@@ -1,0 +1,52 @@
+### Maven ###
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+.mvn/wrapper/maven-wrapper.jar
+
+### IDE ###
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+### Java ###
+*.class
+*.jar
+*.war
+hs_err_pid*
+
+### 日志 ###
+logs/
+*.log
+
+### 环境变量 / 密钥（绝对不能提交）###
+.env
+.env.local
+*.local.yml
+!application-local.yml
+
+### 系统 ###
+.DS_Store
+Thumbs.db
+
+### 本地临时验证产物 ###
+# .tmp-out/ 放启动日志与 SSE 抓包，.tmp-check/ 放一次性排查脚本，都不该进版本库
+.tmp-*/
+
+### AI 助手工作区 ###
+# .workbuddy-ai/ 里是 agent 的本地工作记忆（每日日志、约定笔记），不是项目源码。
+# 不进版本库有两个理由：
+#   1. 里面会记本机路径、数据库口令这类只对当前这台机器有意义的东西；
+#   2. 它随对话不断变化，进版本库会把提交历史搅得全是噪音。
+# 想沉淀给团队看的约定请写进 README —— 那才是别人会读的地方。
+.workbuddy-ai/
+
+### 上传目录 ###
+/data/upload/

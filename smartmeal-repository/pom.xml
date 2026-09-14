@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.smartmeal</groupId>
+        <artifactId>smartmeal-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>smartmeal-repository</artifactId>
+    <name>smartmeal-repository</name>
+    <description>数据访问层：MyBatis-Plus Mapper</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.smartmeal</groupId>
+            <artifactId>smartmeal-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <!--
+            必需：MyBatis-Plus 从 3.5.9 起把依赖 JSqlParser 的拦截器
+            （PaginationInnerInterceptor / BlockAttackInnerInterceptor /
+             OptimisticLockerInnerInterceptor 等）拆到了独立模块，
+            starter 不再传递引入。少了这个依赖，MybatisPlusConfig 会直接编译不过。
+        -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SmartMeal · 智能膳食规划与生鲜导购</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+        <div class="brand">
+            <span class="brand-mark"></span>
+            <div>
+                <h1>SmartMeal</h1>
+                <p class="brand-sub">智能膳食规划与生鲜导购</p>
+            </div>
+        </div>
+        <div class="status" id="aiStatus">
+            <span class="dot"></span><span id="aiStatusText">检测中…</span>
+        </div>
+    </div>
+</header>
+
+<main class="page">
+
+    <div class="grid-2">
+        <section class="card">
+            <div class="card-head">
+                <h2>健康档案</h2>
+                <span class="hint" id="profileGoal">-</span>
+            </div>
+            <div class="metrics" id="profileMetrics">
+                <div class="metric"><span class="metric-label">身高</span><span class="metric-value" id="m-height">-</span></div>
+                <div class="metric"><span class="metric-label">体重</span><span class="metric-value" id="m-weight">-</span></div>
+                <div class="metric"><span class="metric-label">BMI</span><span class="metric-value" id="m-bmi">-</span></div>
+                <div class="metric"><span class="metric-label">基础代谢 BMR</span><span class="metric-value" id="m-bmr">-</span></div>
+                <div class="metric"><span class="metric-label">日常消耗 TDEE</span><span class="metric-value" id="m-tdee">-</span></div>
+                <div class="metric metric-accent"><span class="metric-label">每日目标热量</span><span class="metric-value" id="m-target">-</span></div>
+            </div>
+
+            <div class="block">
+                <h3>禁忌食材<span class="hint">由过敏原映射表展开，含衍生品</span></h3>
+                <div class="chips" id="allergenChips"><span class="empty">无</span></div>
+            </div>
+
+            <div class="block">
+                <h3>冰箱现有<span class="hint">生成时会自动扣减</span></h3>
+                <div class="chips" id="fridgeChips"><span class="empty">无</span></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <h2>生成膳食计划</h2>
+                <span class="hint">SSE 流式返回</span>
+            </div>
+
+            <form id="generateForm" class="form">
+                <label class="field">
+                    <span>健康目标</span>
+                    <select id="goal">
+                        <option value="loss_fat">减脂</option>
+                        <option value="gain_muscle">增肌</option>
+                        <option value="balance">均衡</option>
+                        <option value="low_sugar">控糖</option>
+                    </select>
+                </label>
+
+                <label class="field">
+                    <span>计划天数</span>
+                    <input type="number" id="days" value="3" min="1" max="14">
+                </label>
+
+                <label class="field field-wide">
+                    <span>额外过敏原<span class="hint">逗号分隔，会与档案里的取并集</span></span>
+                    <input type="text" id="allergens" placeholder="例如 PEANUT,EGG（留空则只用档案里的）">
+                </label>
+
+                <button type="submit" id="generateBtn" class="btn-primary">生成计划</button>
+            </form>
+
+            <div class="progress-wrap" id="progressWrap" hidden>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="progress-text" id="progressText"></div>
+            </div>
+
+            <div class="stream-wrap" id="streamWrap" hidden>
+                <div class="stream-head">
+                    <span>模型原始输出</span>
+                    <span class="hint" id="streamCount">0 字符</span>
+                </div>
+                <pre class="stream-output" id="streamOutput"></pre>
+            </div>
+        </section>
+    </div>
+
+    <div class="alert" id="alert" hidden></div>
+
+    <section class="card" id="planSection" hidden>
+        <div class="card-head">
+            <h2>膳食计划</h2>
+            <span class="hint" id="planMeta"></span>
+        </div>
+        <div class="warnings" id="planWarnings"></div>
+        <div class="days" id="planDays"></div>
+    </section>
+
+    <section class="card" id="shoppingSection" hidden>
+        <div class="card-head">
+            <h2>购物清单</h2>
+            <span class="hint" id="shoppingMeta"></span>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>食材</th>
+                    <th class="num">食谱需要</th>
+                    <th class="num">冰箱扣减</th>
+                    <th class="num">需购买</th>
+                    <th>商品</th>
+                    <th class="num">份数</th>
+                    <th class="num">小计</th>
+                </tr>
+                </thead>
+                <tbody id="shoppingBody"></tbody>
+                <tfoot>
+                <tr>
+                    <td colspan="6" class="total-label">合计</td>
+                    <td class="num total-value" id="shoppingTotal">-</td>
+                </tr>
+                </tfoot>
+            </table>
+        </div>
+        <p class="footnote">
+            生鲜只能整包卖，因此「需购买」会按 SKU 规格<b>向上取整</b>成整数份。
+        </p>
+    </section>
+
+</main>
+
+<script src="js/app.js"></script>
+</body>
+</html>

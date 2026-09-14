@@ -1,0 +1,94 @@
+server:
+  port: 8081
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: smartmeal-admin-api
+  profiles:
+    active: local
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:smartmeal}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+    hikari:
+      maximum-pool-size: 10
+      initialization-fail-timeout: -1
+
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      timeout: 3s
+
+  ai:
+    model:
+      embedding: none
+    openai:
+      # 恒为占位值，真实 Key 由 smartmeal.ai.api-key 管理。
+      # 原因见 smartmeal-app-api 的同名配置注释。
+      api-key: sk-placeholder-never-used-see-LlmClientConfig
+      base-url: https://api.deepseek.com
+      chat:
+        options:
+          model: deepseek-chat
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+  type-aliases-package: com.smartmeal.domain.entity
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+smartmeal:
+  cache:
+    type: local
+  ai:
+    enabled: true
+    api-key: ${DEEPSEEK_API_KEY:}
+    model: deepseek-chat
+  job:
+    # 管理端不跑定时任务，避免和用户端重复执行（订单会被取消两次）
+    enabled: false
+
+sa-token:
+  token-name: satoken-admin
+  timeout: 2592000
+  is-concurrent: true
+  is-share: false
+  token-style: uuid
+
+knife4j:
+  # 同 app-api：Knife4j 4.5.0 的增强逻辑与 springdoc 2.9.1 不兼容，
+  # 开启会让 /v3/api-docs 抛 NoSuchMethodError。关掉增强，保留 /doc.html 静态界面。
+  # 详见 smartmeal-app-api/src/main/resources/application.yml 中的详细说明。
+  enable: false
+  setting:
+    language: zh_cn
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    root: info
+    com.smartmeal: debug

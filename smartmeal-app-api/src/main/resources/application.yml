@@ -1,0 +1,178 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  # 优雅停机：等待进行中的 AI 生成任务收尾
+  shutdown: graceful
+
+spring:
+  application:
+    name: smartmeal-app-api
+  profiles:
+    active: local
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+  config:
+    # 让 .env 真正生效。
+    #
+    # Spring Boot 默认不读 .env（只有 docker compose 读），
+    # 而 README 里写的是「cp .env.example .env 然后填 Key」，
+    # 不加这行的话用户填了也没用，必须手动 export，体验很割裂。
+    #
+    # .env 是 KEY=VALUE 格式，正好兼容 properties 语法，
+    # 用 [.properties] 显式告诉 Spring 按 properties 解析；
+    # optional: 前缀保证文件不存在时正常启动（新克隆的仓库只有 .env.example）。
+    import: optional:file:./.env[.properties]
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+
+  mvc:
+    async:
+      # SSE 异步请求超时，必须 >= AiPlannerService 里 SseEmitter 的超时值
+      request-timeout: 180000
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:smartmeal}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+    hikari:
+      pool-name: SmartMealHikariPool
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      # 关键：设为 -1 后，数据库没起来应用也能正常启动（连接池延迟到首次使用时才建连）。
+      # 否则本地还没建库时，整个应用会直接启动失败，开发体验很差。
+      initialization-fail-timeout: -1
+
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3s
+      connect-timeout: 3s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  ai:
+    model:
+      # DeepSeek 不提供 Embedding 模型，显式关掉，避免误以为向量化能力已就绪
+      embedding: none
+    openai:
+      # 这里恒为固定占位值，不接环境变量。
+      #
+      # 原因：Spring AI 的自动配置在 api-key 为空时会直接抛异常，导致
+      # 「没配 Key 就连服务都起不来」。而 ${DEEPSEEK_API_KEY:默认值} 这种写法挡不住
+      # 「变量存在但值为空」的情况（比如 .env 里写了 DEEPSEEK_API_KEY=），
+      # 空串会被当作有效值，占位默认值根本不生效。
+      #
+      # 所以真实 Key 统一由 smartmeal.ai.api-key 管理，
+      # LlmClientConfig 会用它显式构建 ChatModel（见该类注释）。
+      # 这一项只负责让自动配置的校验通过，不会再被使用。
+      api-key: sk-placeholder-never-used-see-LlmClientConfig
+      base-url: https://api.deepseek.com
+      chat:
+        options:
+          model: deepseek-chat
+          temperature: 0.2
+          max-tokens: 8000
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+  type-aliases-package: com.smartmeal.domain.entity
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+smartmeal:
+  cache:
+    # local = Caffeine 本地缓存（默认，零依赖可启动）
+    # redis = 分布式缓存（多实例生产环境）
+    type: local
+  auth:
+    enabled: true
+    dev-user-id: 1
+  ai:
+    enabled: true
+    # 留空则自动降级为 MockLlmClient，链路依然可跑通
+    api-key: ${DEEPSEEK_API_KEY:}
+    base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+    model: deepseek-chat
+    temperature: 0.2
+    max-tokens: 8000
+    rag-enabled: true
+    top-k: 10
+    max-repair-attempts: 2
+    timeout-millis: 120000
+  job:
+    enabled: true
+    knowledge-sync-enabled: false
+
+sa-token:
+  token-name: satoken
+  timeout: 2592000
+  is-concurrent: true
+  is-share: false
+  token-style: uuid
+  is-log: false
+  is-read-cookie: false
+
+knife4j:
+  # 关掉 Knife4j 的「增强」自动配置，只保留它的静态 UI（/doc.html）。
+  #
+  # 原因：Knife4j 4.5.0 是最后一个版本，它内部按 springdoc 2.3.0 编译，
+  # 调用的是 SpringDocConfigProperties.getGroupConfigs() 返回 List 的旧签名；
+  # 而 springdoc 从 2.4.0 起把该方法的返回类型改成了 Set。
+  # 一旦 knife4j.enable=true，Knife4jOpenApiCustomizer 就会在生成文档时抛
+  # NoSuchMethodError: getGroupConfigs()，导致 /v3/api-docs 直接 500。
+  #
+  # 反过来把 springdoc 降回 2.3.0 也不行：springdoc < 2.7.0 用的是
+  # Spring 6.2 已删除的 ControllerAdviceBean 构造器，在 Boot 3.5 上会以另一种
+  # NoSuchMethodError 挂掉。
+  #
+  # 所以这里选择「保留 springdoc 2.9.1 + 关掉 Knife4j 增强」：
+  # /doc.html 仍是 Knife4j 的界面（静态资源，不受该开关影响），
+  # 文档数据由 springdoc 正常生成，两边都能用。
+  enable: false
+  setting:
+    language: zh_cn
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: info
+    com.smartmeal: debug
+    org.springframework.ai: info

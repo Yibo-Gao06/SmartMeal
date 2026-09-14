@@ -1,0 +1,593 @@
+/* SmartMeal 演示页样式。
+   设计取向：医疗健康类工具，走干净克制的路线 —— 浅色底、绿色主色、细边框、
+   不用渐变和阴影堆叠。跟随系统深浅色，暗色下所有文字保持可读。 */
+
+:root {
+    --bg: #f6f7f6;
+    --card: #ffffff;
+    --text: #1c1c1c;
+    --text-2: #6b7280;
+    --text-3: #9ca3af;
+    --border: #e5e7eb;
+    --border-2: #d1d5db;
+    --accent: #1d9e75;
+    --accent-soft: #e8f5f0;
+    --accent-text: #0f6e56;
+    --danger: #dc2626;
+    --danger-soft: #fef2f2;
+    --warn: #b45309;
+    --warn-soft: #fffbeb;
+    --radius: 12px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #16181a;
+        --card: #1e2124;
+        --text: #e8eaed;
+        --text-2: #9aa0a6;
+        --text-3: #6b7280;
+        --border: #2d3134;
+        --border-2: #3c4145;
+        --accent: #4ade80;
+        --accent-soft: #14291f;
+        --accent-text: #86efac;
+        --danger: #f87171;
+        --danger-soft: #2a1a1a;
+        --warn: #fbbf24;
+        --warn-soft: #2a2318;
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- 顶栏 ---------- */
+
+.topbar {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.topbar-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--accent);
+    flex-shrink: 0;
+}
+
+.brand h1 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: .2px;
+}
+
+.brand-sub {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-2);
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+
+.dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-3);
+    flex-shrink: 0;
+}
+
+.status.is-mock .dot {
+    background: var(--warn);
+}
+
+.status.is-live .dot {
+    background: var(--accent);
+}
+
+/* ---------- 布局 ---------- */
+
+.page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+}
+
+.card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.card-head h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.hint {
+    font-size: 12px;
+    color: var(--text-3);
+    font-weight: 400;
+}
+
+.block {
+    margin-top: 18px;
+}
+
+.block h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+/* ---------- 指标 ---------- */
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.metric {
+    background: var(--bg);
+    border-radius: 9px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.metric-label {
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.metric-value {
+    font-size: 17px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.metric-accent {
+    background: var(--accent-soft);
+}
+
+.metric-accent .metric-value {
+    color: var(--accent-text);
+}
+
+/* ---------- 标签 ---------- */
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.chip {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+}
+
+.chip-danger {
+    background: var(--danger-soft);
+    border-color: transparent;
+    color: var(--danger);
+}
+
+.chip-accent {
+    background: var(--accent-soft);
+    border-color: transparent;
+    color: var(--accent-text);
+}
+
+.empty {
+    font-size: 12px;
+    color: var(--text-3);
+}
+
+/* ---------- 表单 ---------- */
+
+.form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+    align-items: end;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.field > span {
+    font-size: 12px;
+    color: var(--text-2);
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.field-wide {
+    grid-column: 1 / -1;
+}
+
+select,
+input[type="number"],
+input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--border-2);
+    border-radius: 8px;
+    outline: none;
+}
+
+select:focus,
+input:focus {
+    border-color: var(--accent);
+}
+
+.btn-primary {
+    padding: 9px 20px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 500;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-primary:hover:not(:disabled) {
+    filter: brightness(1.06);
+}
+
+.btn-primary:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+/* ---------- 进度 ---------- */
+
+.progress-wrap {
+    margin-top: 18px;
+}
+
+.progress-bar {
+    height: 5px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width .3s ease;
+}
+
+.progress-text {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+/* ---------- 流式输出 ---------- */
+
+.stream-wrap {
+    margin-top: 16px;
+}
+
+.stream-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-2);
+    margin-bottom: 6px;
+}
+
+.stream-output {
+    margin: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--text-2);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ---------- 提示条 ---------- */
+
+.alert {
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+}
+
+.alert-error {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.alert-info {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+}
+
+/* ---------- 警告 ---------- */
+
+.warnings {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.warnings:empty {
+    display: none;
+}
+
+.warning-item {
+    font-size: 12.5px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--warn-soft);
+    color: var(--warn);
+}
+
+/* ---------- 计划详情 ---------- */
+
+.days {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+.day {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.day-head {
+    padding: 10px 14px;
+    background: var(--bg);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.day-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.day-cal {
+    font-size: 12px;
+    color: var(--accent-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.meal {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+}
+
+.meal-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.meal-type {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    flex-shrink: 0;
+}
+
+.meal-name {
+    font-size: 13px;
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+}
+
+.meal-cal {
+    font-size: 12px;
+    color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.meal-reason {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.meal-ing {
+    margin: 6px 0 0;
+    font-size: 11.5px;
+    color: var(--text-3);
+    font-family: var(--mono);
+}
+
+.servings {
+    font-size: 11px;
+    color: var(--text-3);
+}
+
+/* ---------- 表格 ---------- */
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.table th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--text-2);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: 1px solid var(--border);
+}
+
+.table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.table tfoot td {
+    border-bottom: none;
+    padding-top: 12px;
+    font-weight: 600;
+}
+
+.total-label {
+    text-align: right;
+    color: var(--text-2);
+    font-weight: 400;
+}
+
+.total-value {
+    color: var(--accent-text);
+    font-size: 15px;
+}
+
+.muted {
+    color: var(--text-3);
+}
+
+.tag-fridge {
+    font-size: 11px;
+    color: var(--accent-text);
+    background: var(--accent-soft);
+    padding: 2px 7px;
+    border-radius: 5px;
+    white-space: nowrap;
+}
+
+.footnote {
+    margin: 12px 0 0;
+    font-size: 12px;
+    color: var(--text-3);
+}
+
+@media (max-width: 640px) {
+    .page {
+        padding: 16px;
+    }
+
+    .topbar-inner {
+        padding: 12px 16px;
+    }
+}

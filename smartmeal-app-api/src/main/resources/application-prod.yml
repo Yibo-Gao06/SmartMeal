@@ -1,0 +1,33 @@
+# 生产环境：全部走真实中间件
+server:
+  shutdown: graceful
+
+smartmeal:
+  cache:
+    # 多实例部署必须用 Redis，本地缓存会导致各实例数据不一致
+    type: redis
+  auth:
+    # 生产必须开启鉴权
+    enabled: true
+  ai:
+    enabled: true
+    rag-enabled: true
+    top-k: 10
+  job:
+    enabled: true
+    knowledge-sync-enabled: true
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+logging:
+  level:
+    root: warn
+    com.smartmeal: info
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus

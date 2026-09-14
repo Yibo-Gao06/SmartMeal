@@ -1,0 +1,35 @@
+# =============================================================
+#  用户端应用镜像
+#
+#  构建前先在项目根目录执行：./mvnw clean package -DskipTests
+#  然后：docker build -f smartmeal-deploy/Dockerfile.app -t smartmeal/app-api .
+# =============================================================
+
+FROM eclipse-temurin:17-jre-alpine
+
+LABEL maintainer="SmartMeal"
+
+# 时区：容器默认 UTC，不设置的话日志时间会比本地时间少 8 小时，
+# 排查问题时非常容易误判。
+RUN apk add --no-cache tzdata curl \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone \
+    && apk del tzdata
+
+WORKDIR /app
+
+# 用非 root 用户运行，降低容器逃逸后的影响面
+RUN addgroup -S smartmeal && adduser -S smartmeal -G smartmeal
+USER smartmeal
+
+COPY smartmeal-app-api/target/smartmeal-app-api-*.jar app.jar
+
+ENV JAVA_OPTS="-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai"
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# exec 形式让 JVM 成为 PID 1，能正确接收 SIGTERM 触发优雅停机
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

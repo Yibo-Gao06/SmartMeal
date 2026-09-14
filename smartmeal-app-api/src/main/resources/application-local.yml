@@ -1,0 +1,33 @@
+# 本地开发环境：零外部依赖也能启动
+spring:
+  datasource:
+    hikari:
+      # 本地默认值是 30s。数据库没起来时，/actuator/health 会傻等 30 秒才返回 DOWN，
+      # 调接口排查问题时非常难受。本地压到 3s 快速失败，生产环境不设此覆盖。
+      connection-timeout: 3000
+
+smartmeal:
+  cache:
+    type: local
+  auth:
+    # 关掉登录校验，接口可以直接调，不用先拿 token
+    enabled: false
+    dev-user-id: 1
+  job:
+    enabled: true
+    knowledge-sync-enabled: false
+
+logging:
+  level:
+    com.smartmeal: debug
+    # 打开可以看到完整的 SQL，排查数据问题时很有用
+    com.smartmeal.repository.mapper: debug
+
+management:
+  health:
+    # 本地用 Caffeine（smartmeal.cache.type=local），压根不碰 Redis。
+    # 但 spring-boot-starter-data-redis 在 classpath 上，Boot 会自动注册 Redis 健康检查，
+    # 于是 /actuator/health 每次都去连 6379 然后报连接失败——纯噪音。
+    # 这里显式关掉；生产环境（cache.type=redis）不设这个开关，健康检查保持开启。
+    redis:
+      enabled: false
