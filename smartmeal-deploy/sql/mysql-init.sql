@@ -499,9 +499,16 @@ INSERT INTO t_product_sku (product_id,sku_name,ingredient_id,price,stock,unit,sp
 (8012,'新鲜黄瓜 500g/份',1015,4.20,150,'份','500g/份',500,1),
 (8013,'纯正花生油 900ml/瓶',1013,29.90,50,'瓶','900ml/瓶',900,1);
 
--- 演示用户（密码字段是占位，登录接口目前不校验密码）
+-- 演示用户。明文口令 demo123456，这里的值是它的 BCrypt 哈希（strength=10，60 字符）。
+--
+-- 为什么直接写哈希而不是让应用启动时初始化：种子数据要能被任何人拿来复现，
+-- 包括只跑 SQL 不开 Java 的场景。写哈希意味着「口令」这件事在这里就是不可逆的，
+-- 即使这份 SQL 进了公开仓库也不泄露口令 —— 想验证的人拿 README 里的明文登录即可。
+--
+-- 这个哈希是用 spring-security-crypto 6.5.11 的 BCryptPasswordEncoder 生成的，
+-- 不是从网上抄的。抄来的哈希没人知道对应明文，演示时登不进去。
 INSERT INTO t_user (id,username,password,nickname,phone,gender,birth_date,height_cm,weight_kg,activity_level,goal,weekly_budget,family_size,status)
-VALUES (1,'demo','$2a$10$PLACEHOLDER_PLEASE_REPLACE_WITH_BCRYPT','演示用户','13800000000',1,'2000-05-20',170.0,80.0,'middle','loss_fat',300.00,1,1);
+VALUES (1,'demo','$2a$10$9/DoLRsdxcbP7HI4odaujeoHDX6sImes9p.PMqrziMPC9PkEd7Pqm','演示用户','13800000000',1,'2000-05-20',170.0,80.0,'middle','loss_fat',300.00,1,1);
 
 -- 演示用户对花生过敏：生成结果里只要出现花生/花生油/花生酱就会被硬拦截
 INSERT INTO t_user_allergy (user_id, allergen_code, allergen_name, severity)

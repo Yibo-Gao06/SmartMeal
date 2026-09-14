@@ -23,6 +23,20 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <!--
+            只引 spring-security-crypto，不引 spring-boot-starter-security。
+            这里要的只是 BCryptPasswordEncoder 这一个类，而 starter-security 会顺带拉起
+            整条过滤器链，默认给所有接口套上 HTTP Basic 和 CSRF ——
+            本项目的鉴权是 Sa-Token 负责的，两套机制叠在一起只会互相打架
+            （典型症状是登录接口突然 401，或者 POST 全部 403）。
+            版本由 Spring Boot 的 BOM 管，不写死。
+        -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

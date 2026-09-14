@@ -27,4 +27,14 @@ public final class CommonConstants {
     public static final String CACHE_AI_TASK = "smartmeal:ai:task:";
     public static final String CACHE_AI_PLAN_RESULT = "smartmeal:ai:plan:";
     public static final String CACHE_RATE_AI = "smartmeal:rate:ai:";
+
+    /**
+     * 登录失败计数器前缀。
+     *
+     * <p>和 {@link #CACHE_RATE_AI} 分开而不是复用，因为两者的语义不同：
+     * 限流是「时间窗内允许 N 次」，计数到点自动失效；
+     * 登录失败是「累计错 N 次就锁一段时间」，**成功登录必须主动清零**。
+     * 混用会让「输错 4 次后输对一次」这种正常行为把配额也一起吃掉。
+     */
+    public static final String CACHE_AUTH_FAIL = "smartmeal:auth:fail:";
 }

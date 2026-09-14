@@ -108,6 +108,24 @@ java -jar smartmeal-app-api/target/smartmeal-app-api-1.0.0-SNAPSHOT.jar
 `application-local.yml` 里默认 **`smartmeal.auth.enabled: false`**，所以调接口不用先登录，
 `CurrentUserResolver` 会固定返回 `dev-user-id: 1`。
 
+**演示账号**（种子数据里已经带好，`t_user` 表）：
+
+| 用户名 | 口令 | 说明 |
+|---|---|---|
+| `demo` | `demo123456` | 已对**花生**过敏、冰箱里有 300g 番茄 + 4 枚鸡蛋 |
+
+登录接口是 `POST /api/app/auth/login`，请求体 `{"username":"demo","password":"demo123456"}`。
+`t_user.password` 里存的是这个口令的 **BCrypt 哈希**（strength=10，60 字符），
+不是明文——所以这份 SQL 即使进了公开仓库也不泄露口令，照着上表就能登进去验证。
+
+```bash
+# 验证登录（注意 --noproxy，Windows 上代理会劫持 localhost）
+curl --noproxy '*' -X POST http://localhost:8080/api/app/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"demo","password":"demo123456"}'
+# 口令错 5 次会被锁 15 分钟；期间即使输对也拒绝，且不再查库
+```
+
 ### 4. 快速验证
 
 ```bash
@@ -134,7 +152,7 @@ curl --noproxy '*' http://localhost:8080/api/app/shopping-list/by-plan/1
 ./mvnw test
 ```
 
-**119 个单元测试，全部不依赖数据库**，覆盖项目里所有「算错了就出事」的逻辑：
+**144 个单元测试，全部不依赖数据库**，覆盖项目里所有「算错了就出事」的逻辑：
 
 | 测试类 | 数量 | 钉住的是什么 |
 |---|---|---|
@@ -143,11 +161,12 @@ curl --noproxy '*' http://localhost:8080/api/app/shopping-list/by-plan/1
 | `PlanJsonParserTest` | 12 | 剥代码块围栏、前后解释文字截取、多字段忽略、截断 JSON 的失败路径 |
 | `ShoppingListServiceImplTest` | 22 | **整包向上取整**、跨天聚合、单位隔离、SKU 比价、冰箱按真实数量扣减 |
 | `MockLlmClientDataTest` | 19 | 演示数据的「像样程度」：菜谱 ID 真实存在、天数与请求一致、**每道菜挂的是自己的食材**、用量随份数放大 |
-| `MockLlmClientResolveDaysTest` | 10 | 从 Prompt 反查天数的边界：缺失/负数/超大值/多处匹配 |
+| `UserAuthServiceImplTest` | 25 | **防用户名枚举**（三种失败同码同文案）、**失败 5 次锁定且锁定期内不再查库**、成功登录清零计数、注册只落哈希、弱密码与非法用户名边界、占位符哈希不喂给 BCrypt |
 | `LocalCacheServiceTest` | 11 | per-entry TTL、`increment` 是固定窗口而非滑动窗口、前缀批量清理 |
+| `MockLlmClientResolveDaysTest` | 10 | 从 Prompt 反查天数的边界：缺失/负数/超大值/多处匹配 |
+| `CalcAgeTest` | 7 | 生日未到/已到的周岁计算、闰日边界 |
 | `GeneratePlanNoTest` | 3 | 计划单号生成不依赖时区、同毫秒不撞号 |
 | `MealPlanServiceImplSaveResultTest` | 3 | **落库的热量目标取后端实算值**，不采信模型回传 |
-| `CalcAgeTest` | 7 | 生日未到/已到的周岁计算、闰日边界 |
 
 期望值全是手算公式得出的（比如 170cm/80kg/30 岁男性：BMR 1718 → TDEE 2663 → 减脂目标 2130），
 公式或系数一旦被改动，测试立刻失败。
@@ -248,6 +267,31 @@ Caffeine 实现里自定义了 `Expiry`，`expireAfterUpdate` 返回原剩余时
 
 代价也很明确：**没有组件复用，样式是手写的**。页面再复杂一点就该换框架了，
 但目前这个体量下，手写的总行数（HTML 150 + CSS 590 + JS 450）比一个 `package.json` 的配置还少。
+
+### 10. 登录：BCrypt + 防用户名枚举 + 失败锁定
+
+鉴权是 Sa-Token 负责的（签发 token、拦截 `/api/app/**` 的白名单），但**校验口令**这件事属于
+业务规则，放在 `UserAuthService` 里，不碰 Web 层。这样 `UserAuthServiceImplTest` 不需要
+任何 Web 上下文就能单测，也是项目里所有「算错了就出事」逻辑的统一位置。
+
+三个安全细节是各自针对攻击面加的，不是顺手写的：
+
+1. **三种失败对外完全一致**。用户不存在、密码错、账号被禁用，都返回同一个
+   `PASSWORD_ERROR`（「用户名或密码错误」）。如果给「用户不存在」单独一个提示，
+   登录接口就成了用户名枚举器——攻击者拿常见字典跑一遍，就能筛出哪些账号真实存在。
+2. **用户不存在时也要跑一次 BCrypt**。BCrypt 一次几十毫秒，如果「查无此人」直接返回、
+   跳过哈希计算，响应时间会明显短于「密码错误」，攻击者用响应时间差同样能枚举用户名
+   （时序侧信道）。代价是每次不存在的登录都多算一次哈希，由失败计数与上游限流兜住。
+3. **失败计数成功后必须清零**。否则「前 4 次输错、第 5 次输对」这种正常行为会把计数器留在 4，
+   用户下次手滑一次就被锁，看起来像系统坏了。
+
+失败的判定走 `CacheService.increment()` 的**返回值**而不是「自增完再 `get` 回来」：
+本地实现存 `AtomicLong`、Redis 实现存 `INCR` 的裸整数，读回来靠的是「裸数字恰好是合法 JSON」
+这个巧合。`increment` 的返回值是接口契约，不依赖任何存储细节——这条在 Redis 下尤其重要。
+
+BCrypt 哈希只存哈希、不存 salt 列：salt 编码在哈希串自身（`$2a$10$<22位salt><31位摘要>`）。
+口令只存哈希这一条，通过 `register` 里「`user.setPassword(encoder.encode(raw))` 是唯一写库点」
+来保证——任何路径都不会把明文落到数据库、日志或返回值。
 
 ---
 
@@ -496,7 +540,10 @@ int offset = (int) (recipe.id() % INGREDIENT_POOL.size());
 ## 九、已知限制
 
 - **RAG 是关键词检索，不是向量检索**（见「接入 pgvector」）
-- **鉴权是骨架**：`AuthController` 的登录不校验密码，生产环境必须补上 BCrypt
+- **登录失败计数只按用户名维度，不按来源 IP**：知道用户名的人可以故意输错把账号锁死
+  （定向 DoS）。生产应改成「用户名 + IP」双维度或指数退避。之所以没做，是因为 Service 层
+  拿不到请求 IP（那需要把 Web 层的东西一路透传下来），取舍是「先记录清楚，不假装解决了」
+- **`AuthController` 没有验证码 / 二次验证**，锁定是唯一的暴力破解防线
 - **`KnowledgeSyncJob` / `EmbeddingRetryJob` 是占位实现**，默认关闭
 - **订单支付没有接真实支付**，只有状态流转和超时取消
 - **`MealPlanTaskRegistry` 是进程内内存表**，多实例部署时会查不到彼此的任务，需换成 Redis

@@ -46,9 +46,16 @@ public interface CacheService {
     <T> T getOrLoad(String key, Class<T> type, Duration ttl, Supplier<T> loader);
 
     /**
-     * 固定窗口计数，用于接口限流。
+     * 固定窗口计数，用于接口限流与登录失败计数。
      *
      * <p>第一次调用创建计数器并设置 TTL，后续自增不重置过期时间。
+     *
+     * <p><b>请用本方法的返回值做判定，不要 {@code get} 回来再判。</b>
+     * 计数器的存储方式两种实现并不一致：本地实现存 {@code AtomicLong} 对象，
+     * Redis 实现存的是 {@code INCR} 产生的裸整数。后者能被 {@code get(key, Long.class)}
+     * 读回来，靠的是「裸数字恰好是合法 JSON」这个巧合 ——
+     * 换个存储格式（比如改成 JSON 对象）就会静默读不到值。
+     * 返回值是接口契约，不依赖任何存储细节。
      *
      * @return 自增后的计数值
      */
