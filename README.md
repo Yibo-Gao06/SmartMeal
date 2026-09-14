@@ -544,6 +544,12 @@ int offset = (int) (recipe.id() % INGREDIENT_POOL.size());
   （定向 DoS）。生产应改成「用户名 + IP」双维度或指数退避。之所以没做，是因为 Service 层
   拿不到请求 IP（那需要把 Web 层的东西一路透传下来），取舍是「先记录清楚，不假装解决了」
 - **`AuthController` 没有验证码 / 二次验证**，锁定是唯一的暴力破解防线
+- **Redis 抖动时登录锁定会静默放行（fail-open）**：`CacheService.increment` 在 Redis 异常时
+  `catch` 后返回 0，而锁定判定完全依赖这个返回值，于是计数器「建不起来」时锁定就失效。
+  这是限流类能力常见的取舍——Redis 挂了宁可放行也不该把全站登录卡死（那是 DoS）——但代价是
+  故障窗口内暴力破解防护没了。要 fail-closed 得让 `increment` 把异常抛给调用方、由
+  `UserAuthServiceImpl.failure()` 决定「数不上就当已达上限」，但那样 Redis 抖动会变成全站登录 500。
+  本地缓存（Caffeine）模式下不受影响，因为自增不会失败
 - **`KnowledgeSyncJob` / `EmbeddingRetryJob` 是占位实现**，默认关闭
 - **订单支付没有接真实支付**，只有状态流转和超时取消
 - **`MealPlanTaskRegistry` 是进程内内存表**，多实例部署时会查不到彼此的任务，需换成 Redis
