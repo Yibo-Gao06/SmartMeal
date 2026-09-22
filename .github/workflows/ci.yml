@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# 测试全 mock、不依赖任何外部中间件（MySQL / Redis 均通过 CacheService 抽象用本地实现替代），
+# 所以 CI 只需要一个 JDK 即可，无需起 service 容器。
+jobs:
+  build:
+    name: Build & Test (JDK 17)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          # 缓存 ~/.m2/repository，依赖不变时跳过下载
+          cache: 'maven'
+
+      - name: Ensure mvnw is executable
+        # Windows 上提交可能丢执行位，CI 里补一下，避免 ./mvnw 报 Permission denied
+        run: chmod +x mvnw
+
+      - name: Build and test
+        run: ./mvnw -B test
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: '**/target/surefire-reports/*.xml'

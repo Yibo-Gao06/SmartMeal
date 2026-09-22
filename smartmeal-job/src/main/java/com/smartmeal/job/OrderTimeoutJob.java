@@ -1,23 +1,21 @@
 package com.smartmeal.job;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.smartmeal.domain.entity.Order;
-import com.smartmeal.domain.enums.OrderStatusEnum;
-import com.smartmeal.repository.mapper.OrderMapper;
+import com.smartmeal.service.order.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 /**
  * 订单超时取消。
  *
  * <p>生鲜订单的特点是「有配送时效」：用户下单后 15 分钟不支付，库存就必须释放，
  * 否则菜压在仓库里卖不出去。
+ *
+ * <p>本类只是「调度壳」：扫描、条件更新、<b>回补库存</b>都在
+ * {@link OrderService#cancelTimeoutOrders} 里，和用户主动取消共用同一条状态机路径。
+ * 之前这里直接改状态不补库存，接入真实扣减后就是丢库存的 bug。
  *
  * <p>实现要点：<b>只关状态，不做物理删除</b>。订单是财务凭证，
  * 任何情况下都不能删；取消只改 status 并记录 cancel_time，方便对账和客服追溯。
@@ -39,7 +37,7 @@ public class OrderTimeoutJob {
     /** 单次处理上限，避免一次性捞出太多订单把内存撑爆。 */
     private static final int BATCH_SIZE = 200;
 
-    private final OrderMapper orderMapper;
+    private final OrderService orderService;
 
     /** 每分钟扫一次。 */
     @Scheduled(cron = "0 * * * * ?")
@@ -48,38 +46,10 @@ public class OrderTimeoutJob {
         // TaskUtils$LoggingErrorHandler，打出一整屏堆栈——数据库抖动一次就刷一屏，
         // 真正的业务日志会被埋掉。这里降级成一行 WARN，让任务下一分钟自然重试。
         try {
-            doCancel();
+            orderService.cancelTimeoutOrders(PAY_TIMEOUT_MINUTES, BATCH_SIZE);
         } catch (Exception e) {
             log.warn("订单超时任务执行失败，将在下个周期重试：{}", e.getMessage());
             log.debug("订单超时任务异常详情", e);
         }
-    }
-
-    private void doCancel() {
-        LocalDateTime deadline = LocalDateTime.now().minusMinutes(PAY_TIMEOUT_MINUTES);
-
-        List<Order> timeoutOrders = orderMapper.selectList(Wrappers.<Order>lambdaQuery()
-                .eq(Order::getStatus, OrderStatusEnum.PENDING_PAYMENT.getCode())
-                .lt(Order::getCreateTime, deadline)
-                .last("limit " + BATCH_SIZE));
-
-        if (timeoutOrders.isEmpty()) {
-            return;
-        }
-
-        int cancelled = 0;
-        for (Order order : timeoutOrders) {
-            Order update = new Order();
-            update.setId(order.getId());
-            update.setStatus(OrderStatusEnum.CANCELLED.getCode());
-            update.setCancelTime(LocalDateTime.now());
-            update.setRemark("超时未支付，系统自动取消");
-            // 条件更新：只有仍是「待支付」才取消，避免和用户正在进行的支付回调打架
-            int rows = orderMapper.update(update, Wrappers.<Order>lambdaUpdate()
-                    .eq(Order::getId, order.getId())
-                    .eq(Order::getStatus, OrderStatusEnum.PENDING_PAYMENT.getCode()));
-            cancelled += rows;
-        }
-        log.info("订单超时任务：扫描 {} 单，实际取消 {} 单", timeoutOrders.size(), cancelled);
     }
 }

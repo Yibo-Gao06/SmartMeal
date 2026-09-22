@@ -10,8 +10,9 @@ smartmeal:
   cache:
     type: local
   auth:
-    # 关掉登录校验，接口可以直接调，不用先拿 token
-    enabled: false
+    # 本地演示也走真实鉴权：BCrypt 校验 + 登录态在演示页端到端生效，
+    # 演示账号 demo / demo123456 已在登录框预填。真要零登录联调时再把这里改回 false。
+    enabled: true
     dev-user-id: 1
   job:
     enabled: true

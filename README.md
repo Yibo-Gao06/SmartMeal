@@ -1,5 +1,7 @@
 # SmartMeal · 智能膳食规划与生鲜导购平台
 
+[![CI](https://github.com/Yibo-Gao06/SmartMeal/actions/workflows/ci.yml/badge.svg)](https://github.com/Yibo-Gao06/SmartMeal/actions/workflows/ci.yml)
+
 用户填一份健康档案，系统调用大模型生成一周食谱，再把食谱自动折算成「该买什么菜、买多少、多少钱」的购物清单，并直连生鲜 SKU 下单。
 
 和常见的「外卖/菜谱 CRUD 项目」相比，这个项目真正的难点集中在三处：**大模型输出的可靠性与安全边界**、**SSE 流式链路的工程化**、**从「食谱」到「商品 SKU」的量纲换算**。这三点在下面的「关键设计」里有详细说明。
@@ -33,7 +35,7 @@ smartmeal-domain       20 张表的实体 + 枚举 + DTO（含 MealPlanResult）
       ↓
 smartmeal-repository   19 个 Mapper + MyBatis-Plus 配置
       ↓
-smartmeal-service      业务逻辑：健康档案、营养计算、购物清单换算
+smartmeal-service      业务逻辑：健康档案、营养计算、购物清单换算、购物车与订单交易
       ↓
 smartmeal-ai           ★ 重头戏：DeepSeek 客户端、Prompt、RAG、校验、SSE
       ↓
@@ -101,7 +103,8 @@ java -jar smartmeal-app-api/target/smartmeal-app-api-1.0.0-SNAPSHOT.jar
 | http://localhost:8080/api/app/ai/status | **看当前走的是真实模型还是 Mock** |
 | http://localhost:8080/actuator/health | 健康检查 |
 
-打开根路径就是完整的演示界面：健康档案 → 生成表单 → SSE 打字机 → 计划详情 → 购物清单，
+打开根路径就是完整的演示界面：健康档案 → 生成表单 → SSE 打字机 → 计划详情 → 购物清单
+→ 一键加购 → 购物车 → 下单 → 模拟支付 → 订单列表，
 全部由 `smartmeal-app-api/src/main/resources/static/` 下的三个文件提供
 （`index.html` + `css/app.css` + `js/app.js`），没有 npm、没有打包步骤，`java -jar` 起完就能点。
 
@@ -141,6 +144,17 @@ curl --noproxy '*' -N -X POST http://localhost:8080/api/app/ai/meal-plan/stream 
 # 演示页用到的两个读接口（页面刷新后靠它们恢复状态）
 curl --noproxy '*' http://localhost:8080/api/app/meal-plan/latest
 curl --noproxy '*' http://localhost:8080/api/app/shopping-list/by-plan/1
+
+# 交易链路：加购 → 查看购物车 → 下单 → 支付 → 查订单
+curl --noproxy '*' -X POST http://localhost:8080/api/app/cart/batch \
+  -H 'Content-Type: application/json' -d '{"shoppingListId":1}'
+curl --noproxy '*' http://localhost:8080/api/app/cart
+curl --noproxy '*' -X POST http://localhost:8080/api/app/orders \
+  -H 'Content-Type: application/json' -d '{"remark":"演示下单"}'
+# 返回体的 data.orderNo 形如 SO202609222301154321，替换到下面两条里
+curl --noproxy '*' -X POST http://localhost:8080/api/app/orders/{orderNo}/pay \
+  -H 'Content-Type: application/json' -d '{"payType":"MOCK"}'
+curl --noproxy '*' http://localhost:8080/api/app/orders/{orderNo}
 ```
 
 > Windows 下如果配了系统代理，`curl` 访问 localhost 会被代理劫持导致超时，
@@ -152,7 +166,7 @@ curl --noproxy '*' http://localhost:8080/api/app/shopping-list/by-plan/1
 ./mvnw test
 ```
 
-**144 个单元测试，全部不依赖数据库**，覆盖项目里所有「算错了就出事」的逻辑：
+**184 个单元测试，全部不依赖数据库**，覆盖项目里所有「算错了就出事」的逻辑：
 
 | 测试类 | 数量 | 钉住的是什么 |
 |---|---|---|
@@ -167,6 +181,8 @@ curl --noproxy '*' http://localhost:8080/api/app/shopping-list/by-plan/1
 | `CalcAgeTest` | 7 | 生日未到/已到的周岁计算、闰日边界 |
 | `GeneratePlanNoTest` | 3 | 计划单号生成不依赖时区、同毫秒不撞号 |
 | `MealPlanServiceImplSaveResultTest` | 3 | **落库的热量目标取后端实算值**，不采信模型回传 |
+| `CartServiceImplTest` | 22 | 加购的**归属校验**（他人清单按不存在处理）、冰箱已覆盖不算跳过、库存不足只跳单条、改数量按 SKU **当前**库存而非清单快照 |
+| `OrderServiceImplTest` | 18 | **防超卖**：条件扣减 0 行受影响必须整单失败不落库；支付/取消/超时三方靠「UPDATE … WHERE status=前态」抢状态，**只有抢赢的一方回补库存** |
 
 期望值全是手算公式得出的（比如 170cm/80kg/30 岁男性：BMR 1718 → TDEE 2663 → 减脂目标 2130），
 公式或系数一旦被改动，测试立刻失败。
@@ -292,6 +308,28 @@ Caffeine 实现里自定义了 `Expiry`，`expireAfterUpdate` 返回原剩余时
 BCrypt 哈希只存哈希、不存 salt 列：salt 编码在哈希串自身（`$2a$10$<22位salt><31位摘要>`）。
 口令只存哈希这一条，通过 `register` 里「`user.setPassword(encoder.encode(raw))` 是唯一写库点」
 来保证——任何路径都不会把明文落到数据库、日志或返回值。
+
+### 11. 交易闭环：加购不预占、下单条件扣减、三方抢状态
+
+购物清单之后是「一键加购 → 购物车 → 下单 → 支付」，三个决策点都有明确的取舍：
+
+1. **加购只做软校验，不预占库存**。购物车条目可能停留几天，生鲜库存本来就少，
+   加购即锁等于替犹豫的用户把热销菜摁死在仓库里。加购时读到的库存只用于提前给用户
+   暴露风险（`t_cart` 只记意向）；改数量同样按 SKU **当前**库存校验，而不是清单生成时的快照。
+2. **下单扣减防超卖靠一条 SQL**：`UPDATE t_product_sku SET stock = stock - n
+   WHERE id = ? AND stock >= n`。「查了再扣」在并发下会互相踩脚，而数据库对单条 UPDATE
+   的行锁天然串行化——**受影响行数为 0 就是被别人抢光了**，抛异常回滚整单。
+   多 SKU 按 id 升序依次扣减，让所有事务以相同顺序拿行锁，避免死锁。
+3. **支付 / 用户取消 / 超时取消三方抢状态**，全部走
+   `UPDATE t_order SET status = 新态 WHERE id = ? AND status = 前态`。
+   数据库保证同一订单只有一方更新得到 1 行，**而回补库存是「抢到那一行的更新」的副作用**——
+   已取消的单不会被支付，已支付的单不会被超时任务再取消、更不会把库存补两次。
+   这也是为什么超时任务从「直接改状态」改成委托 `OrderService.cancelTimeoutOrders()`：
+   真扣库存之后，取消不回补就是丢库存的 bug，状态机必须只有一份实现。
+
+一键加购写入用 `INSERT … ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)`，
+靠 `uk_user_sku_plan` 唯一键天然合并，双开页面同时点也不会撞出 500。
+运费是刻意简化的规则（满 39 免运费，否则 5 元），在下单时定死进订单快照。
 
 ---
 
@@ -551,7 +589,12 @@ int offset = (int) (recipe.id() % INGREDIENT_POOL.size());
   `UserAuthServiceImpl.failure()` 决定「数不上就当已达上限」，但那样 Redis 抖动会变成全站登录 500。
   本地缓存（Caffeine）模式下不受影响，因为自增不会失败
 - **`KnowledgeSyncJob` / `EmbeddingRetryJob` 是占位实现**，默认关闭
-- **订单支付没有接真实支付**，只有状态流转和超时取消
+- **支付是模拟的同步接口**，没有接真实渠道：缺「拉起收银台 → 渠道异步回调 → 对账」和退款链路。
+  但状态机与防打架手段（条件更新、幂等返回）和真实链路一致，接真渠道时替换 `pay` 的实现即可
+- **加购改数量的库存校验是读后判**，从查询到落库的间隙里库存可能已变化；
+  不会造成超卖（下单的条件扣减兜底），但极端情况下用户结算时才发现买不了
+- **订单只有「待支付 → 已支付 / 已取消」两条真实边**，配送中 / 完成 / 退款是状态枚举里的占位，
+  没有对应的推进接口；运费与优惠也是单条硬编码规则
 - **`MealPlanTaskRegistry` 是进程内内存表**，多实例部署时会查不到彼此的任务，需换成 Redis
 - **`/api/app/ai/meal-plan/stream` 的请求体只能传冰箱食材名称，传不了数量**，
   所以「按真实数量扣减冰箱」只在档案从数据库读取时生效；请求体传入的冰箱项会退化为

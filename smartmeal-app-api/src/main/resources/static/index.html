@@ -20,6 +20,11 @@
         <div class="status" id="aiStatus">
             <span class="dot"></span><span id="aiStatusText">检测中…</span>
         </div>
+        <div class="user-area" id="userArea" hidden>
+            <span class="user-name" id="userName"></span>
+            <button type="button" class="btn-ghost" id="logoutBtn">退出</button>
+        </div>
+        <button type="button" class="btn-ghost" id="loginBtn" hidden>登录</button>
     </div>
 </header>
 
@@ -137,9 +142,79 @@
         <p class="footnote">
             生鲜只能整包卖，因此「需购买」会按 SKU 规格<b>向上取整</b>成整数份。
         </p>
+        <div class="card-actions">
+            <button type="button" class="btn-primary" id="addToCartBtn" hidden>一键加入购物车</button>
+            <span class="hint" id="addToCartHint"></span>
+        </div>
+    </section>
+
+    <section class="card" id="cartSection" hidden>
+        <div class="card-head">
+            <h2>购物车</h2>
+            <span class="hint" id="cartMeta"></span>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th></th>
+                    <th>商品</th>
+                    <th>规格</th>
+                    <th class="num">单价</th>
+                    <th class="num">数量</th>
+                    <th class="num">小计</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="cartBody"></tbody>
+                <tfoot>
+                <tr>
+                    <td colspan="5" class="total-label">已选合计</td>
+                    <td class="num total-value" id="cartTotal">-</td>
+                    <td></td>
+                </tr>
+                </tfoot>
+            </table>
+        </div>
+        <p class="footnote">
+            加购<b>不预占库存</b>：生鲜库存有限，为犹豫的用户锁死货架并不公平。
+            真正的扣减发生在下单那一刻，用条件更新防止超卖。
+        </p>
+        <div class="card-actions">
+            <button type="button" class="btn-primary" id="checkoutBtn" hidden>去结算</button>
+            <span class="hint" id="cartHint"></span>
+        </div>
+    </section>
+
+    <section class="card" id="orderSection" hidden>
+        <div class="card-head">
+            <h2>我的订单</h2>
+            <span class="hint">下单后 15 分钟未支付将自动取消并回补库存</span>
+        </div>
+        <ul class="order-list" id="orderList"></ul>
     </section>
 
 </main>
+
+<div class="modal-mask" id="loginMask" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+        <h2 id="loginTitle">登录 SmartMeal</h2>
+        <p class="modal-sub">演示账号已预填，直接点「登录」即可体验完整流程</p>
+        <form id="loginForm" class="login-form">
+            <label class="field">
+                <span>用户名</span>
+                <input type="text" id="loginUsername" autocomplete="username" value="demo">
+            </label>
+            <label class="field">
+                <span>密码</span>
+                <input type="password" id="loginPassword" autocomplete="current-password" value="demo123456">
+            </label>
+            <div class="alert alert-error" id="loginError" hidden></div>
+            <button type="submit" class="btn-primary" id="loginSubmit">登录</button>
+        </form>
+        <p class="modal-foot">演示账号：<b>demo</b> / <b>demo123456</b> · 密码经 BCrypt 哈希存储</p>
+    </div>
+</div>
 
 <script src="js/app.js"></script>
 </body>
